@@ -1,0 +1,15 @@
+# Intermediate working files (always regenerable)
+.tmp/
+
+# Secrets
+.env
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
