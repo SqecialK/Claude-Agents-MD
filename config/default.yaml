@@ -1,0 +1,106 @@
+# btcmm configuration. Secrets are NEVER stored here: *_env fields name the
+# environment variable that holds the secret.
+#
+# Phase 1 supports modes: off | record. shadow/paper/live are rejected at startup.
+
+log_level: INFO
+
+venues:
+  kalshi:
+    mode: record
+    # The current official SDK defaults to external-api.kalshi.com; the long-standing
+    # public host is api.elections.kalshi.com. Use whichever the docs list for you.
+    rest_base_url: https://api.elections.kalshi.com/trade-api/v2
+    ws_url: wss://api.elections.kalshi.com/trade-api/ws/v2
+    # Demo (integration tests, Phase 4):
+    #   rest_base_url: https://demo-api.kalshi.co/trade-api/v2
+    #   ws_url: wss://demo-api.kalshi.co/trade-api/ws/v2
+    key_id_env: KALSHI_API_KEY_ID
+    secret_path_env: KALSHI_PRIVATE_KEY_PATH   # PEM file (RSA or Ed25519)
+    secret_env: KALSHI_PRIVATE_KEY_PEM         # alternative: PEM contents
+    window_lengths_min: [5, 15]
+    fees:
+      # Coefficients for Kalshi come from the API (series fee_type/fee_multiplier).
+      # Only rounding is taken from here. Set verified: true after checking the
+      # current Kalshi fee schedule / fee-rounding docs.
+      taker_coef: "0.07"
+      rounding_increment: "0.01"
+      rounding_scope: order
+      verified: false
+      discretionary_notes: ["liquidity incentive programs: logged separately, never in edge"]
+
+  polymarket_us:
+    mode: record
+    public_rest_base_url: https://gateway.polymarket.us
+    rest_base_url: https://api.polymarket.us
+    ws_url: wss://api.polymarket.us
+    key_id_env: POLYMARKET_US_KEY_ID
+    secret_env: POLYMARKET_US_SECRET_KEY       # base64 Ed25519
+    window_lengths_min: [5, 15]
+    max_ws_subscriptions: 50
+    fees:
+      # No fee endpoint in the official SDK. FILL THESE IN from the current
+      # published schedule before any edge report is trusted; changed during 2026.
+      taker_coef: "0.07"          # PLACEHOLDER - verify
+      maker_coef: "0"
+      maker_rebate_coef: "0"      # set only if paid deterministically per fill
+      rounding_increment: "0.01"  # PLACEHOLDER - verify
+      rounding_scope: order
+      verified: false
+
+  gemini:
+    mode: record
+    rest_base_url: https://api.gemini.com          # sandbox: https://api.sandbox.gemini.com
+    ws_url: wss://api.gemini.com/v2/marketdata     # sandbox: wss://api.sandbox.gemini.com/v2/marketdata
+    key_id_env: GEMINI_API_KEY
+    secret_env: GEMINI_API_SECRET
+    window_lengths_min: [5, 15]
+    fees:
+      taker_coef: "0.07"
+      maker_coef: "0.0175"
+      maker_rebate_coef: "0"
+      rounding_increment: "0.01"  # PLACEHOLDER - verify
+      rounding_scope: order
+      verified: false
+      discretionary_notes:
+        - "maker fee waiver on qualifying trades through 2026-12-31 (discretionary, excluded from edge)"
+        - "maker rebate program (discretionary, excluded from edge)"
+
+spot:
+  feeds:
+    - {name: coinbase, proxy_for: [kalshi]}
+    - {name: kraken,   proxy_for: [kalshi]}
+    - {name: bitstamp, proxy_for: [kalshi]}
+    - {name: gemini,   proxy_for: [kalshi, gemini]}
+  chainlink_enabled: false
+  staleness_limit_ms: 500
+
+clock:
+  ntp_servers: [time.google.com, time.cloudflare.com, pool.ntp.org]
+  max_drift_ms: 100
+  check_interval_s: 60
+  block_recording_on_drift: false
+
+recorder:
+  out_dir: data/recordings
+  rotate_seconds: 3600
+  flush_interval_s: 1.0
+  settlement_poll_interval_s: 60
+
+risk:
+  per_venue_max_exposure_usd: "75"
+  total_max_exposure_usd: "200"
+  initial_live_cap_usd: "25"
+  per_venue_daily_loss_usd: "20"
+  total_daily_loss_usd: "40"
+  min_half_spread: "0.02"
+  final_cutoff_point_price_s: 45
+  final_cutoff_averaged_s: 20
+  max_participation: 0.10
+  shadow_period_hours: 48
+
+gates:
+  min_windows: 500
+  min_fills: 2000
+  min_live_paper_fraction: 0.30
+  max_p_value: 0.05
